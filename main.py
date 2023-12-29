@@ -2,6 +2,7 @@ import pygame
 import pyautogui
 import time
 import numpy as np
+import subprocess
 
 DEAD_ZONE_LEFT = 0.05  # 0-1
 DEAD_ZONE_RIGHT = 0.2  # 0-1
@@ -28,12 +29,6 @@ PAD_AXIS_RIGHT_HORIZONTAL = 3
 PAD_AXIS_RIGHT_VERTICAL   = 4
 PAD_AXIS_R2               = 5
 
-MOUSE = 'mouse'
-KEYBOARD = 'keyboard'
-
-SHIIN = ['', 'k', 's', 't', 'n', 'h', 'm', 'y', 'r', 'w']
-BOIN = ['a', 'i', 'u', 'e', 'o', 'nn']
-
 pyautogui.FAILSAFE = False
 pyautogui.PAUSE = 0
 
@@ -44,9 +39,7 @@ joy.init()
 
 pygame.event.set_allowed([pygame.JOYBUTTONDOWN, pygame.JOYBUTTONUP])
 
-mode = MOUSE
 scroll_sum = 0
-now_char = [0, 0]
 
 while True:
     axes_left = [joy.get_axis(0), joy.get_axis(1)]
@@ -76,7 +69,7 @@ while True:
             if e.button == PAD_BUTTON_X:
                 pyautogui.hotkey('ctrl', 'w')
             if e.button == PAD_BUTTON_SELECT:
-                pyautogui.hotkey('ctrl', 'alt', 'b')
+                subprocess.Popen('onboard')
         elif e.type == pygame.JOYBUTTONUP:
             if e.button == PAD_BUTTON_A:
                 pyautogui.mouseUp()
