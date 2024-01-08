@@ -3,6 +3,11 @@ import pyautogui
 import time
 import numpy as np
 import subprocess
+import threading
+
+from util import (
+    show_message,
+)
 
 DEAD_ZONE_LEFT = 0.05  # 0-1
 DEAD_ZONE_RIGHT = 0.2  # 0-1
@@ -39,6 +44,7 @@ joy.init()
 
 pygame.event.set_allowed([pygame.JOYBUTTONDOWN, pygame.JOYBUTTONUP])
 
+cursor_ratio = 1.0
 scroll_sum = 0
 
 while True:
@@ -47,8 +53,8 @@ while True:
         axes_left[i] = axes_left[i] if np.abs(axes_left[i]) > DEAD_ZONE_LEFT else 0
         axes_left[i] = np.sign(axes_left[i]) * np.abs(axes_left[i]) ** CURSOR_INDEX
     pyautogui.move(
-        int(axes_left[0] * CURSOR_SPEED),
-        int(axes_left[1] * CURSOR_SPEED)
+        int(axes_left[0] * CURSOR_SPEED * cursor_ratio),
+        int(axes_left[1] * CURSOR_SPEED * cursor_ratio)
     )
     
     axis_right_vertical = joy.get_axis(4)
@@ -80,5 +86,19 @@ while True:
                 pyautogui.hotkey('alt', 'left')
             if e.value[0] > 0:
                 pyautogui.hotkey('alt', 'right')
+            if e.value[1] < 0:
+                cursor_ratio = max([0.0, cursor_ratio - 0.1])
+                th = threading.Thread(
+                    target=show_message,
+                    args=("cursor_ratio: {:.2f}".format(cursor_ratio),)
+                )
+                th.start()
+            if e.value[1] > 0:
+                cursor_ratio = min([1.0, cursor_ratio + 0.1])
+                th = threading.Thread(
+                    target=show_message,
+                    args=("cursor_ratio: {:.2f}".format(cursor_ratio),)
+                )
+                th.start()
 
     time.sleep(0.01)
