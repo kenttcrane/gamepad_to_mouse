@@ -3,11 +3,11 @@ from tkinter import ttk
 
 def show_message(msg):
     root = tk.Tk()
-    root.attributes("-alpha", 0.5)
-    root.config(width=100, height=100)
     root.overrideredirect(True)
+    root.wait_visibility(root)
+    root.attributes('-alpha', 0.5)
 
-    label=tk.Label(root,text=msg)
-    label.pack(anchor='center', expand=1)
-    root.after(500, lambda: root.destroy()) 
+    label=tk.Label(root, text=msg, font=('', 36, 'normal'))
+    label.pack(anchor='center')
+    root.after(400, lambda: root.destroy()) 
     root.mainloop()
