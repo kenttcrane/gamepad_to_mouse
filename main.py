@@ -46,8 +46,18 @@ pygame.event.set_allowed([pygame.JOYBUTTONDOWN, pygame.JOYBUTTONUP])
 
 cursor_ratio = 1.0
 scroll_sum = 0
+valid = True
 
 while True:
+    time.sleep(0.01)
+
+    if not valid:
+        events = pygame.event.get()
+        for e in events:
+            if e.type == pygame.JOYBUTTONDOWN and e.button == PAD_BUTTON_START:
+                valid = not valid
+        continue
+
     axes_left = [joy.get_axis(0), joy.get_axis(1)]
     for i in range(len(axes_left)):
         axes_left[i] = axes_left[i] if np.abs(axes_left[i]) > DEAD_ZONE_LEFT else 0
@@ -74,6 +84,8 @@ while True:
                 pyautogui.mouseDown(button='right')
             if e.button == PAD_BUTTON_X:
                 pyautogui.hotkey('ctrl', 'w')
+            if e.button == PAD_BUTTON_START:
+                valid = not valid
             if e.button == PAD_BUTTON_SELECT:
                 subprocess.Popen('onboard')
         elif e.type == pygame.JOYBUTTONUP:
@@ -101,4 +113,4 @@ while True:
                 )
                 th.start()
 
-    time.sleep(0.01)
+
