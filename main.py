@@ -4,6 +4,8 @@ import time
 import numpy as np
 import subprocess
 import threading
+import socket
+import pyperclip
 
 from util import (
     show_message,
@@ -44,73 +46,100 @@ joy.init()
 
 pygame.event.set_allowed([pygame.JOYBUTTONDOWN, pygame.JOYBUTTONUP])
 
-cursor_ratio = 1.0
-scroll_sum = 0
-valid = True
+def pad_input_loop():
+    cursor_ratio = 1.0
+    scroll_sum = 0
+    valid = True
 
-while True:
-    time.sleep(0.01)
+    while True:
+        time.sleep(0.01)
 
-    if not valid:
+        if not valid:
+            events = pygame.event.get()
+            for e in events:
+                if e.type == pygame.JOYBUTTONDOWN and e.button == PAD_BUTTON_START:
+                    valid = not valid
+            continue
+
+        axes_left = [joy.get_axis(0), joy.get_axis(1)]
+        for i in range(len(axes_left)):
+            axes_left[i] = axes_left[i] if np.abs(axes_left[i]) > DEAD_ZONE_LEFT else 0
+            axes_left[i] = np.sign(axes_left[i]) * np.abs(axes_left[i]) ** CURSOR_INDEX
+        pyautogui.move(
+            int(axes_left[0] * CURSOR_SPEED * cursor_ratio),
+            int(axes_left[1] * CURSOR_SPEED * cursor_ratio)
+        )
+        
+        axis_right_vertical = joy.get_axis(4)
+        if np.abs(axis_right_vertical) < DEAD_ZONE_RIGHT:
+            axis_right_vertical = 0
+        scroll_sum += axis_right_vertical * SCROLL_SPEED
+        if np.abs(scroll_sum) > 1:
+            pyautogui.scroll(-1 * int(np.sign(scroll_sum)))
+            scroll_sum -= np.sign(scroll_sum)
+            
         events = pygame.event.get()
         for e in events:
-            if e.type == pygame.JOYBUTTONDOWN and e.button == PAD_BUTTON_START:
-                valid = not valid
-        continue
+            if e.type == pygame.JOYBUTTONDOWN:
+                if e.button == PAD_BUTTON_A:
+                    pyautogui.mouseDown()
+                if e.button == PAD_BUTTON_B:
+                    pyautogui.mouseDown(button='right')
+                if e.button == PAD_BUTTON_X:
+                    pyautogui.hotkey('ctrl', 'w')
+                if e.button == PAD_BUTTON_Y:
+                    pyautogui.press('enter')
+                if e.button == PAD_BUTTON_START:
+                    valid = not valid
+                if e.button == PAD_BUTTON_SELECT:
+                    subprocess.Popen('onboard')
+            elif e.type == pygame.JOYBUTTONUP:
+                if e.button == PAD_BUTTON_A:
+                    pyautogui.mouseUp()
+                if e.button == PAD_BUTTON_B:
+                    pyautogui.mouseUp(button='right')
+            elif e.type == pygame.JOYHATMOTION:
+                if e.value[0] < 0:
+                    pyautogui.hotkey('alt', 'left')
+                if e.value[0] > 0:
+                    pyautogui.hotkey('alt', 'right')
+                if e.value[1] < 0:
+                    cursor_ratio = max([0.0, cursor_ratio - 0.1])
+                    th = threading.Thread(
+                        target=show_message,
+                        args=("cursor_ratio: {:.2f}".format(cursor_ratio),)
+                    )
+                    th.start()
+                if e.value[1] > 0:
+                    cursor_ratio = min([1.0, cursor_ratio + 0.1])
+                    th = threading.Thread(
+                        target=show_message,
+                        args=("cursor_ratio: {:.2f}".format(cursor_ratio),)
+                    )
+                    th.start()
 
-    axes_left = [joy.get_axis(0), joy.get_axis(1)]
-    for i in range(len(axes_left)):
-        axes_left[i] = axes_left[i] if np.abs(axes_left[i]) > DEAD_ZONE_LEFT else 0
-        axes_left[i] = np.sign(axes_left[i]) * np.abs(axes_left[i]) ** CURSOR_INDEX
-    pyautogui.move(
-        int(axes_left[0] * CURSOR_SPEED * cursor_ratio),
-        int(axes_left[1] * CURSOR_SPEED * cursor_ratio)
-    )
+def udp_receive_loop():
+    M_SIZE = 1024
+    PORT = 21900
+    ADDRESS = ('', PORT)
+    print('address:', ADDRESS)
     
-    axis_right_vertical = joy.get_axis(4)
-    if np.abs(axis_right_vertical) < DEAD_ZONE_RIGHT:
-        axis_right_vertical = 0
-    scroll_sum += axis_right_vertical * SCROLL_SPEED
-    if np.abs(scroll_sum) > 1:
-        pyautogui.scroll(-1 * int(np.sign(scroll_sum)))
-        scroll_sum -= np.sign(scroll_sum)
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    sock.bind(ADDRESS)
+
+    while True:
+        message, cli_addr = sock.recvfrom(M_SIZE)
+        message = message.decode(encoding='utf-8')
         
-    events = pygame.event.get()
-    for e in events:
-        if e.type == pygame.JOYBUTTONDOWN:
-            if e.button == PAD_BUTTON_A:
-                pyautogui.mouseDown()
-            if e.button == PAD_BUTTON_B:
-                pyautogui.mouseDown(button='right')
-            if e.button == PAD_BUTTON_X:
-                pyautogui.hotkey('ctrl', 'w')
-            if e.button == PAD_BUTTON_START:
-                valid = not valid
-            if e.button == PAD_BUTTON_SELECT:
-                subprocess.Popen('onboard')
-        elif e.type == pygame.JOYBUTTONUP:
-            if e.button == PAD_BUTTON_A:
-                pyautogui.mouseUp()
-            if e.button == PAD_BUTTON_B:
-                pyautogui.mouseUp(button='right')
-        elif e.type == pygame.JOYHATMOTION:
-            if e.value[0] < 0:
-                pyautogui.hotkey('alt', 'left')
-            if e.value[0] > 0:
-                pyautogui.hotkey('alt', 'right')
-            if e.value[1] < 0:
-                cursor_ratio = max([0.0, cursor_ratio - 0.1])
-                th = threading.Thread(
-                    target=show_message,
-                    args=("cursor_ratio: {:.2f}".format(cursor_ratio),)
-                )
-                th.start()
-            if e.value[1] > 0:
-                cursor_ratio = min([1.0, cursor_ratio + 0.1])
-                th = threading.Thread(
-                    target=show_message,
-                    args=("cursor_ratio: {:.2f}".format(cursor_ratio),)
-                )
-                th.start()
+        print(message, cli_addr)
+        
+        # pyautogui.write(message) # english only
+        pyperclip.copy(message)
+        pyautogui.hotkey('ctrl', 'v')
 
+if __name__ == '__main__':
+    th1 = threading.Thread(target=pad_input_loop)
+    th2 = threading.Thread(target=udp_receive_loop, daemon=True)
 
+    th1.start()
+    th2.start()
